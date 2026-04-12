@@ -23,6 +23,7 @@ from pymatgen.core.structure import Structure
 from pymatgen.electronic_structure.core import Magmom
 from pymatgen.io.vasp.inputs import (
     POTCAR_STATS_PATH,
+    _PotcarSummaryStats,
     BadIncarWarning,
     BadPoscarWarning,
     Incar,
@@ -35,6 +36,7 @@ from pymatgen.io.vasp.inputs import (
     UnknownPotcarWarning,
     VaspInput,
     _gen_potcar_summary_stats,
+    _potcar_summary_stats_split_filename,
 )
 from pymatgen.util.testing import FAKE_POTCAR_DIR, TEST_FILES_DIR, VASP_IN_DIR, VASP_OUT_DIR, MatSciTest
 
@@ -1869,6 +1871,9 @@ class TestVaspInput(MatSciTest):
 
 
 def test_potcar_summary_stats() -> None:
+    if not os.path.exists(POTCAR_STATS_PATH):
+        pytest.skip(f"{POTCAR_STATS_PATH} not present")
+
     potcar_summary_stats = loadfn(POTCAR_STATS_PATH)
 
     assert len(potcar_summary_stats) == 16
@@ -1895,6 +1900,40 @@ def test_potcar_summary_stats() -> None:
     for key, expected in n_potcars_per_functional.items():
         actual = len(potcar_summary_stats[key])
         assert actual == expected, f"{key=}, {expected=}, {actual=}"
+
+
+def test_potcar_summary_stats_lazy_loading(monkeypatch: pytest.MonkeyPatch) -> None:
+    split_path = _potcar_summary_stats_split_filename("PBE")
+    assert os.path.exists(split_path)
+
+    calls: list[str] = []
+
+    def _tracking_loadfn(filename: str):
+        calls.append(filename)
+        return loadfn(filename)
+
+    monkeypatch.setattr("pymatgen.io.vasp.inputs.loadfn", _tracking_loadfn)
+    lazy_stats = _PotcarSummaryStats()
+
+    assert calls == []
+    assert len(lazy_stats) == 16
+    assert "PBE" in lazy_stats
+
+    pbe_stats = lazy_stats["PBE"]
+    assert calls == [split_path]
+    assert len(pbe_stats) == 251
+
+    _ = lazy_stats["PBE"]
+    assert calls == [split_path]
+
+
+def test_potcar_summary_stats_missing_split_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    lazy_stats = _PotcarSummaryStats()
+
+    monkeypatch.setattr("pymatgen.io.vasp.inputs.os.path.exists", lambda _: False)
+
+    with pytest.raises(FileNotFoundError, match="Missing split POTCAR summary stats file for PBE"):
+        lazy_stats["PBE"]
 
 
 def test_gen_potcar_summary_stats() -> None:

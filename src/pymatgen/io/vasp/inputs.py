@@ -14,12 +14,13 @@ import re
 import subprocess
 import warnings
 from collections import Counter, UserDict
+from collections.abc import Iterator, Mapping
 from enum import Enum, unique
 from glob import glob
 from hashlib import sha256
 from pathlib import Path
 from shutil import copyfileobj
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from zipfile import ZipFile
 
 import numpy as np
@@ -39,8 +40,8 @@ from pymatgen.util.io_utils import clean_lines
 from pymatgen.util.string import str_delimited
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-    from typing import Any, ClassVar, Literal
+    from collections.abc import Sequence
+    from typing import ClassVar, Literal
 
     from numpy.typing import ArrayLike, NDArray
     from typing_extensions import Self
@@ -1937,6 +1938,52 @@ PYMATGEN_POTCAR_HASHES: dict = loadfn(f"{MODULE_DIR}/vasp_potcar_pymatgen_hashes
 # Written to some newer POTCARs by VASP
 VASP_POTCAR_HASHES: dict = loadfn(f"{MODULE_DIR}/vasp_potcar_file_hashes.json")
 POTCAR_STATS_PATH: str = os.path.join(MODULE_DIR, "potcar-summary-stats.json.bz2")
+_POTCAR_STATS_FUNCTIONALS: tuple[str, ...] = tuple(POTCAR_FUNCTIONAL_MAP)
+
+
+def _potcar_summary_stats_split_filename(
+    functional: str,
+    summary_stats_filename: str = POTCAR_STATS_PATH,
+) -> str:
+    base_path = Path(summary_stats_filename)
+    base_name = base_path.name.removesuffix(".json.bz2")
+    return str(base_path.with_name(f"{base_name}-{functional}.json.bz2"))
+
+
+def _dump_potcar_summary_stats_splits(summary_stats: Mapping[str, Any], summary_stats_filename: str) -> None:
+    for functional in _POTCAR_STATS_FUNCTIONALS:
+        dumpfn(summary_stats.get(functional, {}), _potcar_summary_stats_split_filename(functional, summary_stats_filename))
+
+
+class _PotcarSummaryStats(Mapping[str, dict[str, Any]]):
+    """Lazily load per-functional POTCAR summary stats."""
+
+    def __init__(
+        self,
+        summary_stats_filename: str = POTCAR_STATS_PATH,
+        functionals: tuple[str, ...] = _POTCAR_STATS_FUNCTIONALS,
+    ) -> None:
+        self.summary_stats_filename = summary_stats_filename
+        self.functionals = functionals
+        self._cache: dict[str, dict[str, Any]] = {}
+
+    def __getitem__(self, functional: str) -> dict[str, Any]:
+        if functional not in self.functionals:
+            raise KeyError(functional)
+        if functional not in self._cache:
+            split_filename = _potcar_summary_stats_split_filename(functional, self.summary_stats_filename)
+            if not os.path.exists(split_filename):
+                raise FileNotFoundError(
+                    f"Missing split POTCAR summary stats file for {functional}: {split_filename}"
+                )
+            self._cache[functional] = loadfn(split_filename)
+        return self._cache[functional]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.functionals)
+
+    def __len__(self) -> int:
+        return len(self.functionals)
 
 
 class PmgVaspPspDirError(ValueError):
@@ -2011,7 +2058,7 @@ class PotcarSingle:
     }
 
     # Used for POTCAR validation
-    _potcar_summary_stats = loadfn(POTCAR_STATS_PATH)
+    _potcar_summary_stats: Mapping[str, dict[str, Any]] = _PotcarSummaryStats()
 
     def __init__(self, data: str, symbol: str | None = None) -> None:
         """
@@ -2861,6 +2908,7 @@ def _gen_potcar_summary_stats(
 
     if summary_stats_filename is not None:
         dumpfn(new_summary_stats, summary_stats_filename)
+        _dump_potcar_summary_stats_splits(new_summary_stats, summary_stats_filename)
 
     return new_summary_stats
 
