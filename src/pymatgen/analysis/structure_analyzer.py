@@ -8,7 +8,6 @@ import warnings
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import Voronoi
 
@@ -153,6 +152,8 @@ class VoronoiAnalyzer:
         Returns:
             plt.Axes: Matplotlib Axes object with the plotted Voronoi analysis.
         """
+        import matplotlib.pyplot as plt
+
         labels, val = zip(*voronoi_ensemble, strict=True)
         arr = np.array(val, dtype=float)
         arr /= np.sum(arr)
