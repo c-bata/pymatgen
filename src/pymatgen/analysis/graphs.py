@@ -21,7 +21,6 @@ from monty.json import MSONable
 from networkx.drawing.nx_agraph import write_dot
 from networkx.readwrite import json_graph
 from scipy.spatial import KDTree
-from scipy.stats import describe
 
 from pymatgen.core import Lattice, Molecule, PeriodicSite, Structure
 from pymatgen.core.structure import FunctionalGroups
@@ -1018,14 +1017,18 @@ class StructureGraph(MSONable):
             'maximum', 'median', 'mean', 'std_dev'
         """
         all_weights = [d.get("weight") for u, v, d in self.graph.edges(data=True)]
-        stats = describe(all_weights, nan_policy="omit")
+        weight_array = np.asarray(all_weights, dtype=float)
+        valid_weights = weight_array[~np.isnan(weight_array)]
+
+        if len(valid_weights) == 0:
+            raise ValueError("The input must not be empty.")
 
         return {
             "all_weights": all_weights,
-            "min": stats.minmax[0],
-            "max": stats.minmax[1],
-            "mean": stats.mean,
-            "variance": stats.variance,
+            "min": np.min(valid_weights),
+            "max": np.max(valid_weights),
+            "mean": np.mean(valid_weights),
+            "variance": np.var(valid_weights, ddof=1),
         }
 
     def types_of_coordination_environments(self, anonymous: bool = False) -> list[str]:
