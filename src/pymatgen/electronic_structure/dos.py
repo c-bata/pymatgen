@@ -11,7 +11,6 @@ import numpy as np
 from monty.json import MSONable
 from scipy.constants import value as _constant
 from scipy.ndimage import gaussian_filter1d
-from scipy.signal import hilbert
 from scipy.special import expit
 from scipy.stats import wasserstein_distance
 
@@ -34,6 +33,25 @@ if TYPE_CHECKING:
     from pymatgen.util.typing import SpeciesLike
 
 logger = logging.getLogger(__name__)
+
+
+def _hilbert(x: ArrayLike) -> NDArray[np.complex128]:
+    """Compute the analytic signal of a 1D real array using NumPy FFTs."""
+    x = np.asarray(x)
+    assert x.ndim == 1, f"_hilbert only supports 1D inputs, got shape {x.shape}"
+    assert np.isrealobj(x), "_hilbert only supports real-valued inputs"
+    n = x.shape[-1]
+    spectrum = np.fft.fft(x, axis=-1)
+    h = np.zeros(n, dtype=spectrum.dtype)
+
+    if n % 2 == 0:
+        h[0] = h[n // 2] = 1
+        h[1 : n // 2] = 2
+    else:
+        h[0] = 1
+        h[1 : (n + 1) // 2] = 2
+
+    return np.fft.ifft(spectrum * h, axis=-1)
 
 
 class DOS(Spectrum):
@@ -1139,9 +1157,9 @@ class CompleteDos(Dos):
             dos = self.get_spd_dos()[band]
 
         # Get Hilbert-transformed densities
-        densities_transformed = {Spin.up: np.imag(hilbert(dos.get_densities(spin=Spin.up)))}
+        densities_transformed = {Spin.up: np.imag(_hilbert(dos.get_densities(spin=Spin.up)))}
         if Spin.down in self.densities:
-            densities_transformed[Spin.down] = np.imag(hilbert(dos.get_densities(spin=Spin.down)))
+            densities_transformed[Spin.down] = np.imag(_hilbert(dos.get_densities(spin=Spin.down)))
 
         return Dos(self.efermi, self.energies, densities_transformed)
 

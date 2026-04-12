@@ -9,10 +9,11 @@ import pytest
 from monty.serialization import loadfn
 from numpy.testing import assert_allclose
 from pytest import approx
+from scipy.signal import hilbert as scipy_hilbert
 
 from pymatgen.core import Element, Structure
 from pymatgen.electronic_structure.core import Orbital, OrbitalType, Spin
-from pymatgen.electronic_structure.dos import DOS, CompleteDos, Dos, FermiDos, LobsterCompleteDos
+from pymatgen.electronic_structure.dos import DOS, CompleteDos, Dos, FermiDos, LobsterCompleteDos, _hilbert
 from pymatgen.util.testing import TEST_FILES_DIR, MatSciTest
 
 TEST_DIR = f"{TEST_FILES_DIR}/electronic_structure/dos"
@@ -247,6 +248,10 @@ class TestCompleteDos:
 
         band_edge = dos.get_upper_band_edge(elements=[Element("Pd")], erange=[-4, 0.5])
         assert band_edge == approx(-1.01246969)
+
+    def test_hilbert_matches_scipy(self):
+        signal = self.dos.get_densities(spin=Spin.up)
+        assert_allclose(_hilbert(signal), scipy_hilbert(signal))
 
     def test_get_n_moment(self):
         dos = self.dos_pdag3
