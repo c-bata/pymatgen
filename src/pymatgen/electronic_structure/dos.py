@@ -12,7 +12,6 @@ from monty.json import MSONable
 from scipy.constants import value as _constant
 from scipy.ndimage import gaussian_filter1d
 from scipy.special import expit
-from scipy.stats import wasserstein_distance
 
 from pymatgen.core import Structure, get_el_sp
 from pymatgen.core.spectrum import Spectrum
@@ -52,6 +51,15 @@ def _hilbert(x: ArrayLike) -> NDArray[np.complex128]:
         h[1 : (n + 1) // 2] = 2
 
     return np.fft.ifft(spectrum * h, axis=-1)
+
+
+def _wasserstein_distance(u_values: ArrayLike, v_values: ArrayLike) -> float:
+    """Compute the 1D Wasserstein distance for equally weighted samples."""
+    u_values = np.sort(np.asarray(u_values, dtype=float))
+    v_values = np.sort(np.asarray(v_values, dtype=float))
+    assert u_values.ndim == 1 and v_values.ndim == 1, "_wasserstein_distance expects 1D inputs"
+    assert len(u_values) == len(v_values), "_wasserstein_distance expects equal-length inputs"
+    return float(np.mean(np.abs(u_values - v_values)))
 
 
 class DOS(Spectrum):
@@ -1358,7 +1366,7 @@ class CompleteDos(Dos):
             return np.dot(vec1, vec2) / rescale
 
         if not normalize and metric == "wasserstein":
-            return wasserstein_distance(
+            return _wasserstein_distance(
                 u_values=np.cumsum(vec1 * fp1.bin_width),
                 v_values=np.cumsum(vec2 * fp2.bin_width),
             )

@@ -9,7 +9,6 @@ import scipy.constants as const
 from monty.functools import lazy_property
 from monty.json import MSONable
 from scipy.ndimage import gaussian_filter1d
-from scipy.stats import wasserstein_distance
 
 from pymatgen.core.structure import Structure
 from pymatgen.util.coord import get_linear_interpolated_value
@@ -23,6 +22,15 @@ if TYPE_CHECKING:
 
 BOLTZ_THZ_PER_K = const.value("Boltzmann constant in Hz/K") / const.tera  # Boltzmann constant in THz/K
 THZ_TO_J = const.value("hertz-joule relationship") * const.tera
+
+
+def _wasserstein_distance(u_values: ArrayLike, v_values: ArrayLike) -> float:
+    """Compute the 1D Wasserstein distance for equally weighted samples."""
+    u_values = np.sort(np.asarray(u_values, dtype=float))
+    v_values = np.sort(np.asarray(v_values, dtype=float))
+    assert u_values.ndim == 1 and v_values.ndim == 1, "_wasserstein_distance expects 1D inputs"
+    assert len(u_values) == len(v_values), "_wasserstein_distance expects equal-length inputs"
+    return float(np.mean(np.abs(u_values - v_values)))
 
 
 class PhononDos(MSONable):
@@ -548,7 +556,7 @@ class PhononDos(MSONable):
             return np.dot(vec1, vec2) / rescale
 
         if not normalize and metric == "wasserstein":
-            return wasserstein_distance(
+            return _wasserstein_distance(
                 u_values=np.cumsum(vec1 * fp1.bin_width),
                 v_values=np.cumsum(vec2 * fp2.bin_width),
             )
