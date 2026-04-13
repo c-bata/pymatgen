@@ -32,7 +32,6 @@ from ruamel.yaml import YAML
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.linalg import expm, polar
 from scipy.spatial.distance import squareform
-from tabulate import tabulate
 
 from pymatgen.core.bonds import CovalentBond, get_bond_length
 from pymatgen.core.composition import Composition
@@ -1186,6 +1185,8 @@ class IStructure(SiteCollection, MSONable):
     def __str__(self) -> str:
         def to_str(x) -> str:
             return f"{x:>10.6f}"
+
+        from tabulate import tabulate
 
         outs = [
             f"Full Formula ({self.composition.formula})",
