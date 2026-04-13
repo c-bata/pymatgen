@@ -30,7 +30,6 @@ from monty.json import MSONable
 from numpy.linalg import norm
 from ruamel.yaml import YAML
 from scipy.linalg import expm, polar
-from scipy.spatial.distance import squareform
 
 from pymatgen.core.bonds import CovalentBond, get_bond_length
 from pymatgen.core.composition import Composition
@@ -56,6 +55,13 @@ if TYPE_CHECKING:
     from ase.io.trajectory import Trajectory
     from ase.optimize.optimize import Optimizer
     from matgl.ext.ase import TrajectoryObserver
+
+
+def _squareform(matrix: np.ndarray) -> np.ndarray:
+    """Convert a symmetric distance matrix to condensed form."""
+    matrix = np.asarray(matrix)
+    assert matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1], "_squareform expects a square matrix"
+    return matrix[np.triu_indices(matrix.shape[0], k=1)]
     from numpy.typing import ArrayLike, NDArray
     from typing_extensions import Self
 
@@ -4867,7 +4873,7 @@ class Structure(IStructure, collections.abc.MutableSequence):
 
         from scipy.cluster.hierarchy import fcluster, linkage
 
-        clusters = fcluster(linkage(squareform((dist_mat + dist_mat.T) / 2)), tol, "distance")
+        clusters = fcluster(linkage(_squareform((dist_mat + dist_mat.T) / 2)), tol, "distance")
 
         sites: list[PeriodicSite] = []
         for cluster in np.unique(clusters):
