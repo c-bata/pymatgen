@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from monty.json import MSONable
-from scipy import stats
 from scipy.ndimage import convolve1d
 
 from pymatgen.util.coord import get_linear_interpolated_value
@@ -33,6 +32,14 @@ def lorentzian(x: NDArray, x_0: float = 0, sigma: float = 1.0) -> NDArray:
         Value of lorentzian at x.
     """
     return 1 / np.pi * 0.5 * sigma / ((x - x_0) ** 2 + (0.5 * sigma) ** 2)
+
+
+def gaussian(x: NDArray, x_0: float = 0, sigma: float | None = None, scale: float | None = None) -> NDArray:
+    """Gaussian probability density function."""
+    sigma = scale if scale is not None else sigma
+    if sigma is None:
+        sigma = 1.0
+    return np.exp(-0.5 * ((x - x_0) / sigma) ** 2) / (sigma * np.sqrt(2 * np.pi))
 
 
 class Spectrum(MSONable):
@@ -200,7 +207,7 @@ class Spectrum(MSONable):
         if callable(func):
             weights = func(points)
         elif func.lower() == "gaussian":
-            weights = stats.norm.pdf(points, scale=sigma)
+            weights = gaussian(points, scale=sigma)
         elif func.lower() == "lorentzian":
             weights = lorentzian(points, sigma=sigma)
         else:
