@@ -29,7 +29,6 @@ from monty.io import zopen
 from monty.json import MSONable
 from numpy.linalg import norm
 from ruamel.yaml import YAML
-from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.linalg import expm, polar
 from scipy.spatial.distance import squareform
 
@@ -4865,6 +4864,8 @@ class Structure(IStructure, collections.abc.MutableSequence):
 
         if dist_mat.shape == (1, 1):
             return self
+
+        from scipy.cluster.hierarchy import fcluster, linkage
 
         clusters = fcluster(linkage(squareform((dist_mat + dist_mat.T) / 2)), tol, "distance")
 
