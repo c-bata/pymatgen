@@ -18,7 +18,6 @@ from numbers import Number
 from typing import TYPE_CHECKING, cast, overload
 
 import numpy as np
-import scipy.constants as const
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -34,17 +33,26 @@ __maintainer__ = "Shyue Ping Ong, Matteo Giantomassi"
 __status__ = "Production"
 __date__ = "Aug 30, 2013"
 
+# Physical constants in SI / exact CODATA-derived values used here.
+ELECTRON_CHARGE = 1.602176634e-19
+AVOGADRO = 6.02214076e23
+MILE_TO_METERS = 1609.344
+CALORIE_TO_JOULE = 4.184
+ATOMIC_MASS_UNIT_TO_KG = 1.66053906660e-27
+BOHR_RADIUS_M = 5.29177210903e-11
+BOLTZMANN_EV_PER_K = 8.617333262145e-5
+
 # Some conversion factors
-Ha_to_eV = 1 / const.physical_constants["electron volt-hartree relationship"][0]
+Ha_to_eV = 27.211386245988
 eV_to_Ha = 1 / Ha_to_eV
 Ry_to_eV = Ha_to_eV / 2
-amu_to_kg = const.physical_constants["atomic mass unit-kilogram relationship"][0]
-mile_to_meters = const.mile
-bohr_to_angstrom = const.physical_constants["Bohr radius"][0] * 1e10
+amu_to_kg = ATOMIC_MASS_UNIT_TO_KG
+mile_to_meters = MILE_TO_METERS
+bohr_to_angstrom = BOHR_RADIUS_M * 1e10
 bohr_to_ang = bohr_to_angstrom
 ang_to_bohr = 1 / bohr_to_ang
-kCal_to_kJ = const.calorie
-kb = const.physical_constants["Boltzmann constant in eV/K"][0]
+kCal_to_kJ = CALORIE_TO_JOULE
+kb = BOLTZMANN_EV_PER_K
 
 # Definitions of supported units. Values below are essentially scaling and
 # conversion factors. What matters is the relative values, not the absolute.
@@ -74,7 +82,7 @@ BASE_UNITS: dict[str, dict[str, float]] = {
     "temperature": {
         "K": 1,
     },
-    "amount": {"mol": 1, "atom": 1 / const.N_A},
+    "amount": {"mol": 1, "atom": 1 / AVOGADRO},
     "intensity": {"cd": 1},
     "memory": {
         "byte": 1,
@@ -89,17 +97,17 @@ BASE_UNITS: dict[str, dict[str, float]] = {
 # SI base units and constants.
 DERIVED_UNITS: dict[str, dict[str, dict[str | float, float]]] = {
     "energy": {
-        "eV": {"kg": 1, "m": 2, "s": -2, const.e: 1},
-        "meV": {"kg": 1, "m": 2, "s": -2, const.e * 1e-3: 1},
-        "Ha": {"kg": 1, "m": 2, "s": -2, const.e * Ha_to_eV: 1},
-        "Ry": {"kg": 1, "m": 2, "s": -2, const.e * Ry_to_eV: 1},
+        "eV": {"kg": 1, "m": 2, "s": -2, ELECTRON_CHARGE: 1},
+        "meV": {"kg": 1, "m": 2, "s": -2, ELECTRON_CHARGE * 1e-3: 1},
+        "Ha": {"kg": 1, "m": 2, "s": -2, ELECTRON_CHARGE * Ha_to_eV: 1},
+        "Ry": {"kg": 1, "m": 2, "s": -2, ELECTRON_CHARGE * Ry_to_eV: 1},
         "J": {"kg": 1, "m": 2, "s": -2},
         "kJ": {"kg": 1, "m": 2, "s": -2, 1000: 1},
         "kCal": {"kg": 1, "m": 2, "s": -2, 1000: 1, kCal_to_kJ: 1},
     },
     "charge": {
         "C": {"A": 1, "s": 1},
-        "e": {"A": 1, "s": 1, const.e: 1},
+        "e": {"A": 1, "s": 1, ELECTRON_CHARGE: 1},
     },
     "force": {
         "N": {"kg": 1, "m": 1, "s": -2},
